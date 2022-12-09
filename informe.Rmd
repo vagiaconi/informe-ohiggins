@@ -25,7 +25,7 @@ library(sp)
 
 ```{r datos, include=FALSE}
 ### Datos Mineduc ###
-df <- read.csv(file="data/directorio-ee-2022.csv", sep=";")
+df <- read.csv(file="data/establecimientos2021.csv", sep=";")
 
 ##### Datos para el Mapa #####
 
@@ -52,7 +52,7 @@ df <- filter(df, COD_REG_RBD == 6, ESTADO_ESTAB == 1, MATRICULA == 1)
 En los datos del Mineduc la dependencia viene agrupada en 5 categorías. Nosotros la agrupamos en tres: Municipal, Particular Subvencionado y Particular Pagado. La categoría Municipal incluye a los Servicios Locales. Quedan fuera 6 colegios de Corp. de Admin. Delegada.
 
 
-```{r}
+```{r dependencia-regional}
 muni <- function(x) {x==1 || x==5}
 part_sub <- function(x) {x==2}
 part_pag <- function(x) {x==3}
@@ -61,6 +61,12 @@ df$Municipal <- apply(df["COD_DEPE2"], 1, muni)
 df$Particular_Sub <- apply(df["COD_DEPE2"], 1, part_sub)
 df$Particular_Pag <- apply(df["COD_DEPE2"], 1, part_pag)
 
+depe <- summarise_at(df, c("Municipal", "Particular_Sub", "Particular_Pag"), sum)
+depe
+```
+
+
+```{r}
 depe <- aggregate(df[c("Municipal", "Particular_Sub", "Particular_Pag")], by=list(df$NOM_DEPROV_RBD), sum)
 
 rownames(depe) <- depe$Group.1
@@ -184,10 +190,5 @@ rama
 # Estudiantes
 
 # Docentes
-
-```{r}
-docentes <- read.csv("data/docentes.csv", sep=";")
-```
-
 
 

@@ -1,0 +1,3 @@
+# Informe Estadístico Educacional Región de O'Higgins
+
+Este repositorio corresponde al informe estadístico educacional de la región de O'Higgins para el año 2021. Este consiste en un archivo RMarkdown, e incluye datos sobre establecimientos educacionales, docentes y estudiantes. Los datos fueron obtenidos de https://datosabiertos.mineduc.cl y son de libre acceso. La gracia del formato en que se muestra este informe es que es reutilizable para años posteriores.
