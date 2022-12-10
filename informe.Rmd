@@ -2,8 +2,8 @@
 title: "Informe Estadístico Regional Educativo"
 output:
   html_document:
-    df_print: paged
-  pdf_document: default
+    establecimientos_print: paged
+  pestablecimientos_document: default
 date: '`r Sys.Date()`'
 ---
 
@@ -25,7 +25,11 @@ library(sp)
 
 ```{r datos, include=FALSE}
 ### Datos Mineduc ###
-df <- read.csv(file="data/establecimientos2021.csv", sep=";")
+establecimientos <- read.csv(file="data/establecimientos2021.csv", sep=";")
+# Observación: los datos de docentes y estudiantes ya vienen filtrados a la 6ta región 
+docentes <- read.csv("data/docentes2021.csv")
+estudiantes <- read.csv("data/estudiantes2021.csv")
+
 
 ##### Datos para el Mapa #####
 
@@ -41,10 +45,10 @@ mapa = data_chile[data_chile$CUT_REG==6, ] # Sólo 6ta región
 mapa = spTransform(mapa,CRS("+init=epsg:4326"))
 ```
 
-Filtramos los datos del Mineduc para la región de O'Higgins. Además, nos quedamos sólo con los establecimientos educacionales que estén funcionando y tengan matrícula. Esto nos deja con `r nrow(df)` establecimientos educacionales.  
+Filtramos los datos del Mineduc para la región de O'Higgins. Además, nos quedamos sólo con los establecimientos educacionales que estén funcionando y tengan matrícula. Esto nos deja con `r nrow(establecimientos)` establecimientos educacionales.  
 
 ```{r}
-df <- filter(df, COD_REG_RBD == 6, ESTADO_ESTAB == 1, MATRICULA == 1)
+establecimientos <- filter(establecimientos, COD_REG_RBD == 6, ESTADO_ESTAB == 1, MATRICULA == 1)
 ```
 
 ### Dependencia
@@ -57,17 +61,17 @@ muni <- function(x) {x==1 || x==5}
 part_sub <- function(x) {x==2}
 part_pag <- function(x) {x==3}
 
-df$Municipal <- apply(df["COD_DEPE2"], 1, muni)
-df$Particular_Sub <- apply(df["COD_DEPE2"], 1, part_sub)
-df$Particular_Pag <- apply(df["COD_DEPE2"], 1, part_pag)
+establecimientos$Municipal <- apply(establecimientos["COD_DEPE2"], 1, muni)
+establecimientos$Particular_Sub <- apply(establecimientos["COD_DEPE2"], 1, part_sub)
+establecimientos$Particular_Pag <- apply(establecimientos["COD_DEPE2"], 1, part_pag)
 
-depe <- summarise_at(df, c("Municipal", "Particular_Sub", "Particular_Pag"), sum)
+depe <- summarise_at(establecimientos, c("Municipal", "Particular_Sub", "Particular_Pag"), sum)
 depe
 ```
 
 
 ```{r}
-depe <- aggregate(df[c("Municipal", "Particular_Sub", "Particular_Pag")], by=list(df$NOM_DEPROV_RBD), sum)
+depe <- aggregate(establecimientos[c("Municipal", "Particular_Sub", "Particular_Pag")], by=list(establecimientos$NOM_DEPROV_RBD), sum)
 
 rownames(depe) <- depe$Group.1
 depe <- depe[, -1]
@@ -82,7 +86,7 @@ depe
 ```{r}
 rel_freq <- function(x) {100*sum(x)/length(x)}
 
-ruralidad <- aggregate(df["RURAL_RBD"], list(df$NOM_DEPROV_RBD), rel_freq)
+ruralidad <- aggregate(establecimientos["RURAL_RBD"], list(establecimientos$NOM_DEPROV_RBD), rel_freq)
 ruralidad
 ```
 
@@ -105,12 +109,12 @@ dependencia <- function(x) {
   )
 }
 
-df2 <- mutate(df,
+establecimientos2 <- mutate(establecimientos,
               ruralidad = ruralidad(RURAL_RBD),
               depe = dependencia(COD_DEPE2)
               )
 
-ggplot(df2) +
+ggplot(establecimientos2) +
   geom_bar(aes(x = ruralidad, fill = depe))
 ```
 
@@ -119,10 +123,10 @@ El siguiente mapa muestra la cantidad de establecimientos educacionales rurales 
 ```{r mapa}
 # Calculamos el porcentaje de establecimientos rurales
 
-dcomunas <- aggregate(x=df$RURAL_RBD, by=list(df$COD_COM_RBD), FUN=rel_freq) %>% 
+dcomunas <- aggregate(x=establecimientos$RURAL_RBD, by=list(establecimientos$COD_COM_RBD), FUN=rel_freq) %>% 
   rename(cod_comuna = Group.1 , freq_rural = x)
 
-##### A?ADIMOS LA COLUMNA QUE QUEREMOS VISUALIZAR AL MAPA DE CHILE #####
+##### AÑADIMOS LA COLUMNA QUE QUEREMOS VISUALIZAR AL MAPA DE CHILE #####
 variables_comunas <- merge(dcomunas, variables_comunas, by="cod_comuna")
 
 variables_comunas = variables_comunas[match(mapa$CUT_COM,variables_comunas$cod_comuna),] #REORDENAMOS LOS DATOS SEGUN LOS DATOS GEOESPACIALES
@@ -173,22 +177,67 @@ cod_ens <- c(paste0("ENS_0",1:9), paste0("ENS_", 10:11))
 f_hc <- function(x) { sum(x %in% c(310))!=0 }
 f_tp <- function(x) { sum(x %in% c(410, 510, 610, 710, 810))!=0 }
 
-df$HC <- apply(df[, cod_ens], 1, f_hc)
-df$TP <- apply(df[, cod_ens], 1, f_tp)
+establecimientos$HC <- apply(establecimientos[, cod_ens], 1, f_hc)
+establecimientos$TP <- apply(establecimientos[, cod_ens], 1, f_tp)
 
-df$POLI <- df$HC & df$TP
+establecimientos$POLI <- establecimientos$HC & establecimientos$TP
 # No consideramos los polivalentes como HC ni TP.
-df$HC <- df$HC & !df$POLI
-df$TP <- df$TP & !df$POLI
+establecimientos$HC <- establecimientos$HC & !establecimientos$POLI
+establecimientos$TP <- establecimientos$TP & !establecimientos$POLI
 
-rama <- aggregate(df[, c("HC", "TP", "POLI")], df["NOM_DEPROV_RBD"], sum)
+rama <- aggregate(establecimientos[, c("HC", "TP", "POLI")], establecimientos["NOM_DEPROV_RBD"], sum)
 rama$TOT_PROV <- apply(rama[, c("HC", "TP", "POLI")], 1, sum)
 
 rama
 ```
 
 # Estudiantes
+Pendiente
 
 # Docentes
+Hacemos un análisis similar a nivel docentes en la región de O'Higgins. Nos quedamos con los docentes cuya función principal es la de "Docente de aula" y que estén en establecimientos funcionando.
+
+```{r}
+# Nos quedamos solo con docentes en la región de O'Higgins y en establecimientos funcionado.
+docentes <- filter(docentes, COD_REG_RBD==6, ESTADO_ESTAB==1, ID_IFP==1)
+```
+
+Hay un rotal de `r nrow(docentes)` en la región de O'Higgins. Se distribuyen de la siguiente forma a lo largo de las tres provinicas de la zona:
+
+```{r}
+por_prov <- data.frame(
+  total = c(sum(docentes$COD_PRO_RBD == 61), sum(docentes$COD_PRO_RBD == 62), sum(docentes$COD_PRO_RBD == 63)),
+  row.names = c("CACHAPOAL", "CARDENAL CARO", "COLCHAGUA")
+)
+por_prov
+barplot(t(as.matrix(por_prov)))
+```
+
+```{r menciones}
+# Docentes por tipo de título (considerando sólo titulados en educación)
+
+
+
+tip_tit <- as.matrix(table(filter(docentes, TIT_ID_1==1)$TIP_TIT_ID_1))
+tip_tit <- rbind(tip_tit, sum(docentes$TIT_ID_1==2))
+
+names <- c("De Párvulos", "Diferencial", "Básica", "Media", "Parvularia y Básica", "Básica y Media", "Titulados en Otras Áreas")
+
+row.names(tip_tit) <- names
+par(mar=c(3, 11, 3, 1))
+barplot(t(tip_tit), main="Docentes por tipo de título", horiz=T, las=1, col="lightblue")
+```
+
+
+
+```{r genero}
+genero <- data.frame(
+  total = c(sum(docentes$DOC_GENERO==1), sum(docentes$DOC_GENERO==2)),
+  row.names = c("Hombre", "Mujer")
+)
+
+barplot(t(as.matrix(genero)))
+```
+
 
 
