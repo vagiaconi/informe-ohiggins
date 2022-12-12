@@ -21,8 +21,6 @@ library(tmap)
 library(sp)
 ```
 
-# Establecimientos
-
 ```{r datos, include=FALSE}
 ### Datos Mineduc ###
 establecimientos <- read.csv(file="data/establecimientos2021.csv", sep=";")
@@ -45,13 +43,15 @@ mapa = data_chile[data_chile$CUT_REG==6, ] # Sólo 6ta región
 mapa = spTransform(mapa,CRS("+init=epsg:4326"))
 ```
 
-Filtramos los datos del Mineduc para la región de O'Higgins. Además, nos quedamos sólo con los establecimientos educacionales que estén funcionando y tengan matrícula. Esto nos deja con `r nrow(establecimientos)` establecimientos educacionales.  
-
-```{r}
+```{r filtrado, include = FALSE}
 establecimientos <- filter(establecimientos, COD_REG_RBD == 6, ESTADO_ESTAB == 1, MATRICULA == 1)
 ```
 
-### Dependencia
+# Establecimientos
+
+Filtramos los datos del Mineduc para la región de O'Higgins. Además, nos quedamos sólo con los establecimientos educacionales que estén funcionando y tengan matrícula. Esto nos deja con `r nrow(establecimientos)` establecimientos educacionales.  
+
+## Dependencia
 
 En los datos del Mineduc la dependencia viene agrupada en 5 categorías. Nosotros la agrupamos en tres: Municipal, Particular Subvencionado y Particular Pagado. La categoría Municipal incluye a los Servicios Locales. Quedan fuera 6 colegios de Corp. de Admin. Delegada.
 
@@ -66,20 +66,23 @@ establecimientos$Particular_Sub <- apply(establecimientos["COD_DEPE2"], 1, part_
 establecimientos$Particular_Pag <- apply(establecimientos["COD_DEPE2"], 1, part_pag)
 
 depe <- summarise_at(establecimientos, c("Municipal", "Particular_Sub", "Particular_Pag"), sum)
-depe
+
+barplot(as.matrix(depe), main = "Dependencia en la Región de O'Higgins", col = "lightblue", xlab="Dependencia", ylab="Frecuencia", ylim=range(pretty(c(0, as.matrix(depe)))))
 ```
-
-
-```{r}
+```{r depe-provincia}
 depe <- aggregate(establecimientos[c("Municipal", "Particular_Sub", "Particular_Pag")], by=list(establecimientos$NOM_DEPROV_RBD), sum)
 
 rownames(depe) <- depe$Group.1
 depe <- depe[, -1]
 
+barplot(t(as.matrix(depe)), beside=T, main="Dependencia", legend=colnames(depe), col=rainbow(3), xlab="Provincia", ylab="Frecuencia", xpd=F)
+
 depe$Total <- apply(depe, 1, sum)
 depe["REGION",] <- colSums(depe)
+
 depe
 ```
+
 
 ### Ruralidad
 
@@ -210,7 +213,7 @@ por_prov <- data.frame(
   row.names = c("CACHAPOAL", "CARDENAL CARO", "COLCHAGUA")
 )
 por_prov
-barplot(t(as.matrix(por_prov)))
+barplot(t(as.matrix(por_prov)), main = "Docentes por provincia")
 ```
 
 ```{r menciones}
@@ -235,7 +238,7 @@ genero <- data.frame(
   total = c(sum(docentes$DOC_GENERO==1), sum(docentes$DOC_GENERO==2)),
   row.names = c("Hombre", "Mujer")
 )
-
+genero
 barplot(t(as.matrix(genero)))
 ```
 
