@@ -1,10 +1,11 @@
 ---
 title: "Informe Estadístico Regional Educativo"
 output:
+  pdf_document: default
+  pestablecimientos_document: default
   html_document:
     establecimientos_print: paged
-  pestablecimientos_document: default
-date: '`r Sys.Date()`'
+date: "`r Sys.Date()`"
 ---
 
 ```{r setup, include=FALSE}
