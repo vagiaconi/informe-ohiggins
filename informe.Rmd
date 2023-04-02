@@ -1,10 +1,10 @@
 ---
 title: "Informe Estadístico Regional Educativo"
 output:
-  pdf_document: default
-  pestablecimientos_document: default
   html_document:
     establecimientos_print: paged
+  pestablecimientos_document: default
+  pdf_document: default
 date: "`r Sys.Date()`"
 ---
 
@@ -32,9 +32,9 @@ estudiantes <- read.csv("data/estudiantes2021.csv")
 
 ##### Datos para el Mapa #####
 
-variables_comunas <- read.csv2("mapa-coloreado/variables_comunas.csv")
+variables_comunas <- read.csv2("data/variables_comunas.csv")
 # https://www.ide.cl/index.php/limites-y-fronteras
-data_chile <-  readOGR(dsn = 'mapa-coloreado/division_politica', use_iconv = TRUE, encoding = 'UTF-8')
+data_chile <-  readOGR(dsn = 'data/division_politica', use_iconv = TRUE, encoding = 'UTF-8')
 
 # transformación de los datos al datatype correcto
 data_chile$CUT_REG = as.numeric(data_chile$CUT_REG) 
@@ -56,6 +56,8 @@ Filtramos los datos del Mineduc para la región de O'Higgins. Además, nos queda
 
 En los datos del Mineduc la dependencia viene agrupada en 5 categorías. Nosotros la agrupamos en tres: Municipal, Particular Subvencionado y Particular Pagado. La categoría Municipal incluye a los Servicios Locales. Quedan fuera 6 colegios de Corp. de Admin. Delegada.
 
+Comenzamos caracterizando la dependencia a nivel regional.
+
 
 ```{r dependencia-regional}
 muni <- function(x) {x==1 || x==5}
@@ -70,6 +72,8 @@ depe <- summarise_at(establecimientos, c("Municipal", "Particular_Sub", "Particu
 
 barplot(as.matrix(depe), main = "Dependencia en la Región de O'Higgins", col = "lightblue", xlab="Dependencia", ylab="Frecuencia", ylim=range(pretty(c(0, as.matrix(depe)))))
 ```
+También podemos ver como se distribuye la dependencia dentro de cada provincia.
+
 ```{r depe-provincia}
 depe <- aggregate(establecimientos[c("Municipal", "Particular_Sub", "Particular_Pag")], by=list(establecimientos$NOM_DEPROV_RBD), sum)
 
@@ -78,6 +82,9 @@ depe <- depe[, -1]
 
 barplot(t(as.matrix(depe)), beside=T, main="Dependencia", legend=colnames(depe), col=rainbow(3), xlab="Provincia", ylab="Frecuencia", xpd=F)
 
+```
+
+```{r depe-provincia-tabla}
 depe$Total <- apply(depe, 1, sum)
 depe["REGION",] <- colSums(depe)
 
@@ -87,7 +94,7 @@ depe
 
 ### Ruralidad
 
-```{r}
+```{r ruralidad-establecimientos}
 rel_freq <- function(x) {100*sum(x)/length(x)}
 
 ruralidad <- aggregate(establecimientos["RURAL_RBD"], list(establecimientos$NOM_DEPROV_RBD), rel_freq)
@@ -95,6 +102,8 @@ ruralidad
 ```
 
 ```{r, include=FALSE}
+# Genera un gráfico que muestra la relación entre dependencia y ruralidad. No 
+# lo incluyo en el documento final.
 ruralidad <- function(x) {
   case_when(
     x == 1 ~ "Rural",
@@ -128,13 +137,13 @@ El siguiente mapa muestra la cantidad de establecimientos educacionales rurales 
 # Calculamos el porcentaje de establecimientos rurales
 
 dcomunas <- aggregate(x=establecimientos$RURAL_RBD, by=list(establecimientos$COD_COM_RBD), FUN=rel_freq) %>% 
-  rename(cod_comuna = Group.1 , freq_rural = x)
+  rename(cod_comuna = Group.1 , freq_rural_estab = x)
 
 ##### AÑADIMOS LA COLUMNA QUE QUEREMOS VISUALIZAR AL MAPA DE CHILE #####
 variables_comunas <- merge(dcomunas, variables_comunas, by="cod_comuna")
 
 variables_comunas = variables_comunas[match(mapa$CUT_COM,variables_comunas$cod_comuna),] #REORDENAMOS LOS DATOS SEGUN LOS DATOS GEOESPACIALES
-columna = variables_comunas$freq_rural #COLUMNA A GRAFICAR
+columna = variables_comunas$freq_rural_estab #COLUMNA A GRAFICAR
 
 mapa@data = cbind(mapa@data, columna)
 
@@ -189,14 +198,110 @@ establecimientos$POLI <- establecimientos$HC & establecimientos$TP
 establecimientos$HC <- establecimientos$HC & !establecimientos$POLI
 establecimientos$TP <- establecimientos$TP & !establecimientos$POLI
 
+apply((establecimientos[, c("HC", "TP", "POLI")]), 2, sum )
+```
+Podemos ver también los datos por provincia.
+```{r}
+
 rama <- aggregate(establecimientos[, c("HC", "TP", "POLI")], establecimientos["NOM_DEPROV_RBD"], sum)
 rama$TOT_PROV <- apply(rama[, c("HC", "TP", "POLI")], 1, sum)
 
 rama
 ```
 
+
+
 # Estudiantes
-Pendiente
+Hacemos un análisis similar al anterior pero ahora a nivel de estudiantes.
+
+En la región de O'Higgins hay un total de `r formatC(nrow(estudiantes),big.mark=",")` estudiantes. Veamos como se distribuyen por provincia.
+
+```{r}
+table(estudiantes$NOM_DEPROV_RBD)
+```
+
+## Dependencia
+```{r dependencia-region-estudiantes}
+muni <- function(x) {x==1 || x==5}
+part_sub <- function(x) {x==2}
+part_pag <- function(x) {x==3 || x==4}
+
+estudiantes$Municipal <- apply(estudiantes["COD_DEPE2"], 1, muni)
+estudiantes$Particular_Sub <- apply(estudiantes["COD_DEPE2"], 1, part_sub)
+estudiantes$Particular_Pag <- apply(estudiantes["COD_DEPE2"], 1, part_pag)
+
+depe <- summarise_at(estudiantes, c("Municipal", "Particular_Sub", "Particular_Pag"), sum)
+
+options(scipen=999)
+
+barplot(as.matrix(depe), main = "Dependencia en la Región de O'Higgins", col = "lightblue", xlab="Dependencia", ylab="Frecuencia", ylim=range(pretty(c(0, as.matrix(depe)))))
+```
+
+## Ruralidad
+
+En la siguiente tabla podemos ver el porcentaje de estudiantes rural por provincia. Notar las diferencias con el porcentaje de establecimientos rurales.
+```{r}
+ruralidad <- aggregate(estudiantes["RURAL_RBD"], list(estudiantes$NOM_DEPROV_RBD), rel_freq)
+ruralidad
+```
+
+```{r mapa-estudiantes}
+# Calculamos el porcentaje de estudiantes rurales
+
+dcomunas <- aggregate(x=estudiantes$RURAL_RBD, by=list(estudiantes$COD_COM_RBD), FUN=rel_freq) %>% 
+  rename(cod_comuna = Group.1 , freq_rural_estud = x)
+
+
+##### AÑADIMOS LA COLUMNA QUE QUEREMOS VISUALIZAR AL MAPA DE CHILE #####
+variables_comunas <- merge(dcomunas, variables_comunas, by="cod_comuna")
+
+variables_comunas = variables_comunas[match(mapa$CUT_COM,variables_comunas$cod_comuna),] #REORDENAMOS LOS DATOS SEGUN LOS DATOS GEOESPACIALES
+columna = variables_comunas$freq_rural_estud #COLUMNA A GRAFICAR
+
+mapa@data = cbind(mapa@data, columna)
+
+##### CREAMOS LOS BINS #####
+
+n = 6 #CANTIDAD DE BINS
+
+max_col = max(columna, na.rm = TRUE)
+min_col = min(columna, na.rm = TRUE)
+
+rango   = (max_col-min_col)/n
+
+mybins = seq(0, 100, by = 20)
+
+##### CREAMOS EL MAPA #####
+
+var = 'columna'                                      #nombre de la columna que a?adimos a los datos geoespaciales, por defecto es columna
+
+plot_final = tm_shape(mapa,projection = 3857 ) +     #mapa, sistemas de coordenadas
+  tm_polygons(var,                                   #nombre columna
+              breaks = mybins,                       #bins
+              palette = 'BuPu',                      #paleta a utilizar
+              border.col = 'white',                  #color de bordes de las comunas
+              border.alpha = 1,                      #opacidad de los bordes 
+              title = 'Porcentaje (%)')+             #titulo de la leyenda
+  tm_legend(legend.position = c('left','bottom')) +  #Posicion de la leyenda
+  tm_layout(title = 'Porcentaje de Estudiantes Rurales por Comuna', #titutlo del grafico
+            title.size = 1,                                             #escala del titulo
+            title.position = c('center','top')) +                       #posicion del titulo 
+  tm_layout(inner.margins = c(0.2,0.1,0.1,0.08)) +                      #Para aumentar los bordes, bottom,left,top,right
+  tm_text('COMUNA', size = "AREA")                                       #A?adimos el texto 'COMUNA' a cada comuna, con size = 'AREA' metodo que al texto de 'COMUNA' le da un tama?o proporcional al area de la comuna
+
+plot_final
+```
+
+
+## Modalidades de Enseñanza
+
+Consideramos sólo las modalidades de enseñanza para jóvenes.
+
+```{r}
+modalidad_est <- as.data.frame(table(estudiantes$COD_ENSE2))[c(5, 7),]
+modalidad_est$Var1 <- c("Humanístico-Científica", "Técnico Profesional y Artística")
+modalidad_est
+```
 
 # Docentes
 Hacemos un análisis similar a nivel docentes en la región de O'Higgins. Nos quedamos con los docentes cuya función principal es la de "Docente de aula" y que estén en establecimientos funcionando.
