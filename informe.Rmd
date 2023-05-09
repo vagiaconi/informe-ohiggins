@@ -24,17 +24,20 @@ library(sp)
 
 ```{r datos, include=FALSE}
 ### Datos Mineduc ###
-establecimientos <- read.csv(file="data/establecimientos2021.csv", sep=";")
-# Observación: los datos de docentes y estudiantes ya vienen filtrados a la 6ta región 
-docentes <- read.csv("data/docentes2021.csv")
-estudiantes <- read.csv("data/estudiantes2021.csv")
+docentes <- read.csv2(file="/Users/valentinagiaconi/Dropbox/IER/Directorio-Docentes-2022/20220829_Docentes_2022_20220630_PUBL.csv") 
+docentes<-docentes[docentes$COD_REG_RBD==6,]
+establecimientos <-read.csv2("/Users/valentinagiaconi/Dropbox/IER/Directorio-oficial-EE-2022/20220914_Directorio_Oficial_EE_2022_20220430_WEB.csv") 
+establecimientos<-establecimientos[establecimientos$COD_REG_RBD==6,]
+estudiantes <- read.csv2("/Users/valentinagiaconi/Dropbox/IER/Matricula-por-estudiante-2022/20220908_Matrícula_unica_2022_20220430_WEB.csv")
+estudiantes<-estudiantes[estudiantes$COD_REG_RBD==6,]
+
 
 
 ##### Datos para el Mapa #####
 
-variables_comunas <- read.csv2("data/variables_comunas.csv")
+variables_comunas <- read.csv2("/Users/valentinagiaconi/Dropbox/IER/variables_comunas.csv")
 # https://www.ide.cl/index.php/limites-y-fronteras
-data_chile <-  readOGR(dsn = 'data/division_politica', use_iconv = TRUE, encoding = 'UTF-8')
+data_chile <-  readOGR(dsn = '/Users/valentinagiaconi/Dropbox/IER/division_politica', use_iconv = TRUE, encoding = 'UTF-8')
 
 # transformación de los datos al datatype correcto
 data_chile$CUT_REG = as.numeric(data_chile$CUT_REG) 
