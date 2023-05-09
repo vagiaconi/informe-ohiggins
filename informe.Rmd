@@ -37,7 +37,7 @@ estudiantes<-estudiantes[estudiantes$COD_REG_RBD==6,]
 
 variables_comunas <- read.csv2("/Users/valentinagiaconi/Dropbox/IER/variables_comunas.csv")
 # https://www.ide.cl/index.php/limites-y-fronteras
-data_chile <-  readOGR(dsn = '/Users/valentinagiaconi/Dropbox/IER/division_politica', use_iconv = TRUE, encoding = 'UTF-8')
+data_chile <-  readOGR(dsn = '/Users/valentinagiaconi/Dropbox/IER/DivisionPoliticoAdministrativa2020/COMUNA/COMUNAS_2020.shp', use_iconv = TRUE, encoding = 'UTF-8')
 
 # transformación de los datos al datatype correcto
 data_chile$CUT_REG = as.numeric(data_chile$CUT_REG) 
