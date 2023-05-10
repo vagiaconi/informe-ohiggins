@@ -105,7 +105,7 @@ geom_text(stat='count', aes(label=..count..), vjust=-1)+ylab("Número de estable
 ```
 
 
-```{r, fig.width=10,fig.height=7}
+```{r, fig.width=7,fig.height=3}
 plot_dep
 ```
 
@@ -125,7 +125,7 @@ plot_dep_pro<-ggplot(data=depe_prov,aes(x=NOM_DEPROV_RBD, y=Count, fill=dep)) + 
 
 ```
 
-```{r, fig.width=10,fig.height=7}
+```{r, fig.width=7,fig.height=3}
 plot_dep_pro
 ```
 
