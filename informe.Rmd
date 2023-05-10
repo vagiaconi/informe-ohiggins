@@ -1,10 +1,11 @@
 ---
 title: "Informe Estadístico Regional Educativo"
 output:
-  html_document:
-    establecimientos_print: paged
+  word_document: default
   pestablecimientos_document: default
   pdf_document: default
+  html_document:
+    establecimientos_print: paged
 date: "`r Sys.Date()`"
 ---
 
@@ -20,36 +21,46 @@ library(readxl)
 library(rgdal)
 library(tmap)
 library(sp)
+library(knitr)
+#library(crosstable)
+
+setwd("/Users/valentinagiaconi/Dropbox/IER") 
 ```
 
 ```{r datos, include=FALSE}
-### Datos Mineduc ###
-docentes <- read.csv2(file="/Users/valentinagiaconi/Dropbox/IER/Directorio-Docentes-2022/20220829_Docentes_2022_20220630_PUBL.csv") 
-docentes<-docentes[docentes$COD_REG_RBD==6,]
-establecimientos <-read.csv2("/Users/valentinagiaconi/Dropbox/IER/Directorio-oficial-EE-2022/20220914_Directorio_Oficial_EE_2022_20220430_WEB.csv") 
-establecimientos<-establecimientos[establecimientos$COD_REG_RBD==6,]
-estudiantes <- read.csv2("/Users/valentinagiaconi/Dropbox/IER/Matricula-por-estudiante-2022/20220908_Matrícula_unica_2022_20220430_WEB.csv")
-estudiantes<-estudiantes[estudiantes$COD_REG_RBD==6,]
+# ### Datos Mineduc ###
+# docentes <- read.csv2(file="/Users/valentinagiaconi/Dropbox/IER/Directorio-Docentes-2022/20220829_Docentes_2022_20220630_PUBL.csv") 
+# docentes<-docentes[docentes$COD_REG_RBD==6,]
+# establecimientos <-read.csv2("/Users/valentinagiaconi/Dropbox/IER/Directorio-oficial-EE-2022/20220914_Directorio_Oficial_EE_2022_20220430_WEB.csv") 
+# establecimientos<-establecimientos[establecimientos$COD_REG_RBD==6,]
+# establecimientos <- filter(establecimientos, COD_REG_RBD == 6, ESTADO_ESTAB == 1, MATRICULA == 1)
+# 
+# estudiantes <- read.csv2("/Users/valentinagiaconi/Dropbox/IER/Matricula-por-estudiante-2022/20220908_Matrícula_unica_2022_20220430_WEB.csv")
+# estudiantes<-estudiantes[estudiantes$COD_REG_RBD==6,]
+# 
+# 
+# 
+# ##### Datos para el Mapa #####
+# 
+# variables_comunas <- read.csv2("/Users/valentinagiaconi/Dropbox/IER/variables_comunas.csv")
+# # https://www.ide.cl/index.php/limites-y-fronteras
+# data_chile <-  readOGR(dsn = '/Users/valentinagiaconi/Dropbox/IER/DivisionPoliticoAdministrativa2020/COMUNA/COMUNAS_2020.shp', use_iconv = TRUE, encoding = 'UTF-8')
+# 
+# # transformación de los datos al datatype correcto
+# data_chile$CUT_REG = as.numeric(data_chile$CUT_REG) 
+# data_chile$CUT_COM = as.numeric(data_chile$CUT_COM)
+# 
+# mapa = data_chile[data_chile$CUT_REG==6, ] # Sólo 6ta región
+# mapa = spTransform(mapa,CRS("+init=epsg:4326"))
+# 
+# 
+# save(mapa,establecimientos,docentes,estudiantes,variables_comunas,file="data_IR2022.RData")
 
-
-
-##### Datos para el Mapa #####
-
-variables_comunas <- read.csv2("/Users/valentinagiaconi/Dropbox/IER/variables_comunas.csv")
-# https://www.ide.cl/index.php/limites-y-fronteras
-data_chile <-  readOGR(dsn = '/Users/valentinagiaconi/Dropbox/IER/DivisionPoliticoAdministrativa2020/COMUNA/COMUNAS_2020.shp', use_iconv = TRUE, encoding = 'UTF-8')
-
-# transformación de los datos al datatype correcto
-data_chile$CUT_REG = as.numeric(data_chile$CUT_REG) 
-data_chile$CUT_COM = as.numeric(data_chile$CUT_COM)
-
-mapa = data_chile[data_chile$CUT_REG==6, ] # Sólo 6ta región
-mapa = spTransform(mapa,CRS("+init=epsg:4326"))
+setwd("/Users/valentinagiaconi/Dropbox/IER") 
+load("data_IR2022.RData")
 ```
 
-```{r filtrado, include = FALSE}
-establecimientos <- filter(establecimientos, COD_REG_RBD == 6, ESTADO_ESTAB == 1, MATRICULA == 1)
-```
+
 
 # Establecimientos
 
@@ -59,39 +70,79 @@ Filtramos los datos del Mineduc para la región de O'Higgins. Además, nos queda
 
 En los datos del Mineduc la dependencia viene agrupada en 5 categorías. Nosotros la agrupamos en tres: Municipal, Particular Subvencionado y Particular Pagado. La categoría Municipal incluye a los Servicios Locales. Quedan fuera 6 colegios de Corp. de Admin. Delegada.
 
+NOTAS: 1) Agregar nota al pie sobre SLEP, 2) consideré los Corp. de Admin. Delegada
+
 Comenzamos caracterizando la dependencia a nivel regional.
 
 
 ```{r dependencia-regional}
-muni <- function(x) {x==1 || x==5}
+slep <- function(x) {x==5}
+muni <- function(x) {x==1}
 part_sub <- function(x) {x==2}
 part_pag <- function(x) {x==3}
+ad <- function(x) {x==4}
 
-establecimientos$Municipal <- apply(establecimientos["COD_DEPE2"], 1, muni)
-establecimientos$Particular_Sub <- apply(establecimientos["COD_DEPE2"], 1, part_sub)
-establecimientos$Particular_Pag <- apply(establecimientos["COD_DEPE2"], 1, part_pag)
+establecimientos$dep<-NA
+establecimientos$dep <- ifelse(establecimientos$COD_DEPE2==5,"SLEP",NA)
+establecimientos$dep <- ifelse(establecimientos$COD_DEPE2==1,"Municipal",establecimientos$dep)
+establecimientos$dep <- ifelse(establecimientos$COD_DEPE2==2,"Part. Subv.",establecimientos$dep)
+establecimientos$dep <- ifelse(establecimientos$COD_DEPE2==3,"Part. Pag.",establecimientos$dep)
+establecimientos$dep <-ifelse(establecimientos$COD_DEPE2==4,"Adm. Del.",establecimientos$dep)
 
-depe <- summarise_at(establecimientos, c("Municipal", "Particular_Sub", "Particular_Pag"), sum)
+establecimientos$dep <- factor(establecimientos$dep,levels=c("Municipal","SLEP","Adm. Del.","Part. Subv.","Part. Pag."))
+  
+depe <- table(establecimientos$dep)
 
-barplot(as.matrix(depe), main = "Dependencia en la Región de O'Higgins", col = "lightblue", xlab="Dependencia", ylab="Frecuencia", ylim=range(pretty(c(0, as.matrix(depe)))))
+plot_dep<-ggplot(data=establecimientos, aes(x=dep)) +
+geom_bar() +
+geom_text(stat='count', aes(label=..count..), vjust=-1)+ylab("Número de establecimientos")+xlab("Dependencia")+coord_cartesian(ylim = c(0, 350)) 
+
+# barplot(as.matrix(depe), main = "Dependencia en la Región de O'Higgins", col = "lightblue", xlab="Dependencia", ylab="Número de establecimientos", ylim=range(pretty(c(0, as.matrix(depe)))))
+# 
+# ggplot(data=depe, aes(x=clarity)) +
+# geom_bar() +
+# geom_text(stat='count', aes(label=..count..), vjust=-1)
 ```
+
+
+```{r, fig.width=10,fig.height=7}
+plot_dep
+```
+
 También podemos ver como se distribuye la dependencia dentro de cada provincia.
 
 ```{r depe-provincia}
-depe <- aggregate(establecimientos[c("Municipal", "Particular_Sub", "Particular_Pag")], by=list(establecimientos$NOM_DEPROV_RBD), sum)
+establecimientos$NOM_DEPROV_RBD<-factor(establecimientos$NOM_DEPROV_RBD)
 
-rownames(depe) <- depe$Group.1
-depe <- depe[, -1]
+tb_dep_pro<-count(establecimientos, NOM_DEPROV_RBD, dep) %>% spread(dep, n, fill = 0)
 
-barplot(t(as.matrix(depe)), beside=T, main="Dependencia", legend=colnames(depe), col=rainbow(3), xlab="Provincia", ylab="Frecuencia", xpd=F)
+depe_prov<-gather(data=tb_dep_pro, key="dep", value="Count", colnames(tb_dep_pro)[2:ncol(tb_dep_pro)], factor_key=TRUE)
+
+# depe_prov<-establecimientos %>%  
+#   group_by(dep, NOM_DEPROV_RBD) %>% summarize(Count = n())
+
+plot_dep_pro<-ggplot(data=depe_prov,aes(x=NOM_DEPROV_RBD, y=Count, fill=dep)) + geom_bar(stat='identity', position= "dodge")+geom_text(aes(label = Count), vjust = -0.2,position = position_dodge(width = 1))+ylab("Número de establecimientos")+xlab("Provincia")+scale_x_discrete(drop=FALSE)
 
 ```
 
-```{r depe-provincia-tabla}
-depe$Total <- apply(depe, 1, sum)
-depe["REGION",] <- colSums(depe)
+```{r, fig.width=10,fig.height=7}
+plot_dep_pro
+```
 
-depe
+```{r depe-provincia-tabla}
+tb_dep_pro<-count(establecimientos, NOM_DEPROV_RBD, dep) %>% spread(dep, n, fill = 0)
+
+nrt<-nrow(tb_dep_pro)
+nct<-ncol(tb_dep_pro)
+  
+tb_dep_pro[nrt+1,2:nct]<-apply(tb_dep_pro[,2:nct],2,sum)
+tb_dep_pro[,"NOM_DEPROV_RBD"]<-as.character(tb_dep_pro[,"NOM_DEPROV_RBD"])
+tb_dep_pro[nrt+1,"NOM_DEPROV_RBD"]<-"Total Región"
+
+```
+
+```{r}
+kable(x=tb_dep_pro,col.names = c("Provincia",colnames(tb_dep_pro)[2:ncol(tb_dep_pro)]), caption = "Número de establecimientos según dependencia en cada provincia de la Región de O'Higgins")
 ```
 
 
@@ -100,9 +151,29 @@ depe
 ```{r ruralidad-establecimientos}
 rel_freq <- function(x) {100*sum(x)/length(x)}
 
-ruralidad <- aggregate(establecimientos["RURAL_RBD"], list(establecimientos$NOM_DEPROV_RBD), rel_freq)
-ruralidad
+#ruralidad <- aggregate(establecimientos["RURAL_RBD"], #list(establecimientos$NOM_DEPROV_RBD), rel_freq)
+#ruralidad
+
+#depe_rur<-establecimientos %>%  
+#group_by(RURAL_RBD, NOM_DEPROV_RBD) %>% summarize(Count = n())
+
+tab_rur<-count(establecimientos, NOM_DEPROV_RBD, RURAL_RBD) %>% spread(RURAL_RBD, n, fill = 0)
+colnames(tab_rur)<-c("NOM_DEPROV_RBD","Urbano","Rural")
+
+nrt<-nrow(tab_rur)
+nct<-ncol(tab_rur)
+  
+tab_rur[nrt+1,2:nct]<-apply(tab_rur[,2:nct],2,sum)
+tab_rur[,"NOM_DEPROV_RBD"]<-as.character(tab_rur[,"NOM_DEPROV_RBD"])
+tab_rur[nrt+1,"NOM_DEPROV_RBD"]<-"Total Región"
+
+tab_rur$porc<-round(100*tab_rur$Rural/(tab_rur$Urbano+tab_rur$Rural),1)
 ```
+
+```{r}
+kable(x=tab_rur,col.names = c("Provincia","Número de EE urbanos","Número de EE rurales","% de EE rurales"), caption = "Número de establecimientos según ruralidad en cada provincia de la Región de O'Higgins")
+```
+
 
 ```{r, include=FALSE}
 # Genera un gráfico que muestra la relación entre dependencia y ruralidad. No 
@@ -201,15 +272,34 @@ establecimientos$POLI <- establecimientos$HC & establecimientos$TP
 establecimientos$HC <- establecimientos$HC & !establecimientos$POLI
 establecimientos$TP <- establecimientos$TP & !establecimientos$POLI
 
-apply((establecimientos[, c("HC", "TP", "POLI")]), 2, sum )
+establecimientos$rama<-NA
+establecimientos$rama<-ifelse(establecimientos$POLI,"Polivalente",establecimientos$rama)
+establecimientos$rama<-ifelse(establecimientos$HC,"HC",establecimientos$rama)
+establecimientos$rama<-ifelse(establecimientos$TP,"TP",establecimientos$rama)                         
+tab_rama<-count(establecimientos, NOM_DEPROV_RBD, rama) %>% spread(rama, n, fill = 0)
+
+nrt<-nrow(tab_rama)
+nct<-ncol(tab_rama)
+  
+tab_rama[nrt+1,2:nct]<-apply(tab_rama[,2:nct],2,sum)
+tab_rama[,"NOM_DEPROV_RBD"]<-as.character(tab_rama[,"NOM_DEPROV_RBD"])
+tab_rama[nrt+1,"NOM_DEPROV_RBD"]<-"Total Región"
 ```
-Podemos ver también los datos por provincia.
+
 ```{r}
+kable(x=tab_rama,col.names = c("Provincia","HC","Polivalente","TP","Otros"), caption = "Número de establecimientos según rama en cada provincia de la Región de O'Higgins") #
 
-rama <- aggregate(establecimientos[, c("HC", "TP", "POLI")], establecimientos["NOM_DEPROV_RBD"], sum)
-rama$TOT_PROV <- apply(rama[, c("HC", "TP", "POLI")], 1, sum)
 
-rama
+```
+
+
+```{r}
+# Podemos ver también los datos por provincia.
+
+# rama <- aggregate(establecimientos[, c("HC", "TP", "POLI")], establecimientos["NOM_DEPROV_RBD"], sum)
+# rama$TOT_PROV <- apply(rama[, c("HC", "TP", "POLI")], 1, sum)
+
+# rama
 ```
 
 
